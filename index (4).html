@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1859e8">
+<meta name="description" content="Demo interactiva de Tablero: tableros, tarjetas, plazos y traslado entre tableros.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%231859e8'/%3E%3Crect x='104' y='104' width='132' height='304' rx='28' fill='%23fff'/%3E%3Crect x='276' y='104' width='132' height='200' rx='28' fill='%23fff' opacity='.85'/%3E%3C/svg%3E">
+<title>Tablero Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: barra superior blanca, tablero a pantalla completa con columnas horizontales sobre azul, panel lateral de traslado */
+/* Paleta deliberada de un solo mundo: blanco y azul (pedido explícito), sin modo oscuro */
+:root {
+  --white: #ffffff;
+  --mist: #eef4ff;        /* fondos suaves con tinte azul */
+  --line: #d6e2f7;
+  --ink: #0d2350;         /* texto principal azul muy oscuro */
+  --ink-2: #4a5f86;       /* texto secundario */
+  --blue: #1859e8;        /* acento principal */
+  --blue-deep: #0b3aa8;
+  --blue-soft: #dbe7ff;
+  --red: #d93b3b; --amber: #e8a317; --green: #1c8a5a;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r: 10px;
+  --shadow: 0 1px 2px rgba(13,35,80,.12), 0 0 0 1px rgba(13,35,80,.05);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+html, body { height: 100%; }
+body { background: var(--white); color: var(--ink); font: 14px/1.45 var(--f-body); }
+button, input, select, textarea { font: inherit; color: inherit; }
+input, select, textarea { background: var(--white); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: 0; border-color: transparent; }
+input[type=checkbox] { width: auto; accent-color: var(--blue); }
+textarea { resize: vertical; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+h1, h2, h3, h4 { font-family: var(--f-display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+.muted { color: var(--ink-2); }
+.small { font-size: 12px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.wrap { flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+
+.app { height: 100%; display: flex; flex-direction: column; }
+.topbar { display: flex; align-items: center; gap: 14px; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: var(--white); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 8px; font-family: var(--f-display); font-weight: 700; font-size: 17px; color: var(--blue-deep); background: none; border: 0; padding: 0; }
+.logo { width: 26px; height: 26px; border-radius: 7px; background: var(--blue); display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 5px; }
+.logo i { background: var(--white); border-radius: 2px; }
+.logo i:last-child { height: 65%; }
+.nav { display: flex; gap: 4px; }
+.nav button { background: none; border: 0; padding: 7px 10px; border-radius: 7px; font-weight: 600; color: var(--ink-2); }
+.nav button.on, .nav button:hover { background: var(--mist); color: var(--blue-deep); }
+.as { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.as select { width: auto; max-width: 230px; padding: 6px 8px; }
+.as label { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+
+.btn { border: 0; border-radius: 8px; padding: 8px 12px; background: var(--mist); color: var(--blue-deep); font-weight: 600; white-space: nowrap; }
+.btn:hover { background: var(--blue-soft); }
+.btn.primary { background: var(--blue); color: var(--white); }
+.btn.primary:hover { background: var(--blue-deep); }
+.btn.danger { background: #fde8e8; color: var(--red); }
+.btn.on-blue { background: rgba(255,255,255,.18); color: var(--white); }
+.btn.on-blue:hover, .btn.on-blue.on { background: rgba(255,255,255,.32); }
+.btn.sm { padding: 4px 9px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: var(--mist); color: var(--blue-deep); letter-spacing: .02em; }
+.pill.on-blue { background: rgba(255,255,255,.2); color: var(--white); }
+.avatar { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; color: var(--white); font-weight: 700; font-size: 11px; flex: none; border: 2px solid var(--white); }
+.avatars { display: flex; }
+.avatars .avatar + .avatar { margin-left: -7px; }
+
+/* inicio */
+.page { flex: 1; overflow-y: auto; padding-block: 24px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.inner { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 26px; }
+.intro { background: var(--blue); color: var(--white); border-radius: 14px; padding: 22px 24px; display: grid; grid-template-columns: 1.3fr 1fr; gap: 22px; }
+.intro h1 { font-size: 24px; margin-bottom: 6px; }
+.intro p { margin: 0; max-width: 60ch; color: #dbe7ff; }
+.intro ol { margin: 0; padding-left: 18px; color: #eaf1ff; display: flex; flex-direction: column; gap: 5px; }
+.intro b { color: var(--white); }
+.alert { border: 1px solid var(--line); border-left: 4px solid var(--amber); border-radius: 10px; padding: 12px 14px; background: var(--white); }
+.alert ul { margin: 6px 0 0; padding-left: 18px; }
+.section-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.section-head h2 { font-size: 18px; }
+.area-name { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin: 16px 0 8px; }
+.area-name i { width: 9px; height: 9px; border-radius: 50%; background: var(--blue); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.tile { height: 104px; border: 0; border-radius: 12px; padding: 12px 14px; color: var(--white); text-align: left; display: flex; flex-direction: column; justify-content: space-between; font-family: var(--f-display); font-weight: 600; font-size: 15px; box-shadow: var(--shadow); transition: transform .12s; }
+.tile:hover { transform: translateY(-2px); }
+.tile small { font-family: var(--f-body); font-weight: 500; font-size: 12px; opacity: .9; }
+.tile.new { background: var(--mist); color: var(--blue-deep); align-items: center; justify-content: center; border: 1.5px dashed var(--line); box-shadow: none; }
+.tile.locked { background: var(--white); color: var(--ink-2); border: 1px solid var(--line); box-shadow: none; cursor: default; }
+.tile.locked:hover { transform: none; }
+
+/* tablero */
+.board { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--bbg, var(--blue)); }
+.board-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); background: rgba(5,20,60,.22); color: var(--white); }
+.board-bar h1 { font-size: 18px; color: var(--white); }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.filters input, .filters select { width: auto; min-width: 150px; border: 0; padding: 6px 10px; background: rgba(255,255,255,.95); }
+.filters .note { color: #e3ecff; font-size: 12px; }
+.board-body { flex: 1; display: flex; min-height: 0; }
+.lists { flex: 1; display: flex; gap: 12px; align-items: flex-start; overflow-x: auto; padding-block: 6px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); scroll-snap-type: x proximity; }
+.list { flex: 0 0 278px; max-height: 100%; display: flex; flex-direction: column; background: var(--mist); border-radius: 12px; padding: 8px; scroll-snap-align: start; }
+.list.over { box-shadow: inset 0 0 0 2px var(--amber); }
+.list-head { display: flex; align-items: center; gap: 6px; padding: 4px 6px 8px; cursor: grab; }
+.list-head b { font-family: var(--f-display); font-size: 14px; flex: 1; }
+.count { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; background: var(--white); border-radius: 99px; padding: 1px 8px; }
+.cards { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 12px; padding: 2px; }
+.card { background: var(--white); border-radius: 9px; box-shadow: var(--shadow); padding: 9px 10px; cursor: pointer; overflow: hidden; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.card:hover { box-shadow: 0 0 0 2px var(--blue); }
+.card .cover { height: 26px; margin: -9px -10px 8px; }
+.card-title { font-weight: 500; overflow-wrap: anywhere; }
+.labels { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.lbl { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 5px; color: var(--white); }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 7px; font-size: 12px; color: var(--ink-2); }
+.bdg { padding: 1px 6px; border-radius: 5px; background: var(--mist); font-variant-numeric: tabular-nums; }
+.bdg.overdue { background: var(--red); color: var(--white); }
+.bdg.soon { background: var(--amber); color: var(--ink); }
+.bdg.done { background: var(--green); color: var(--white); }
+.ghost { opacity: .35; }
+.chosen .card, .card.chosen { box-shadow: 0 10px 26px rgba(5,20,60,.3); transform: rotate(2deg); }
+.add { background: none; border: 0; text-align: left; padding: 8px; border-radius: 8px; color: var(--ink-2); font-weight: 600; width: 100%; }
+.add:hover { background: var(--blue-soft); color: var(--blue-deep); }
+.add-list { flex: 0 0 278px; background: rgba(255,255,255,.18); border-radius: 12px; padding: 8px; }
+.add-list .add { color: var(--white); }
+.add-list .add:hover { background: rgba(255,255,255,.2); }
+.addform { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
+
+.tray { flex: 0 0 270px; background: var(--white); margin: 6px 16px 24px 0; margin-right: max(16px, env(safe-area-inset-right, 0px)); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; box-shadow: var(--shadow); }
+.tray h3 { font-size: 15px; }
+.drop { border: 2px dashed var(--line); border-radius: 9px; padding: 14px 10px; font-weight: 600; color: var(--ink-2); min-height: 52px; transition: .15s; }
+.drop .card { margin-top: 8px; opacity: .6; }
+.drop:has(.card) { border-color: var(--blue); background: var(--mist); color: var(--blue-deep); }
+input[type=radio]:checked + .sw { border-color: var(--ink); }
+
+/* modales */
+.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(9,25,66,.5); display: flex; justify-content: center; align-items: flex-start; overflow-y: auto; padding: 40px max(12px, env(safe-area-inset-right, 0px)) 40px max(12px, env(safe-area-inset-left, 0px)); }
+.modal { position: relative; width: 100%; max-width: 820px; background: var(--white); border-radius: 14px; padding: 22px; box-shadow: 0 20px 50px rgba(5,20,60,.35); }
+.modal.narrow { max-width: 520px; }
+.x { position: absolute; top: 10px; right: 12px; border: 0; background: none; font-size: 24px; line-height: 1; color: var(--ink-2); padding: 4px 8px; border-radius: 6px; }
+.x:hover { background: var(--mist); }
+.m-cover { height: 70px; margin: -22px -22px 16px; border-radius: 14px 14px 0 0; }
+.title-input { font-family: var(--f-display); font-size: 20px; font-weight: 600; border-color: transparent; padding: 4px 6px; margin-left: -6px; width: calc(100% - 30px); resize: none; line-height: 1.3; field-sizing: content; min-height: 0; }
+.title-input:hover { border-color: var(--line); }
+.cm-layout { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 22px; margin-top: 12px; }
+.sec { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.sec h4 { font-size: 14px; }
+.lab { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.meta { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 16px; }
+.dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.progress { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.bar { flex: 1; height: 8px; border-radius: 4px; background: var(--mist); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--blue); border-radius: 4px; transition: width .2s; }
+.items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.items li { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.items li.done span { text-decoration: line-through; color: var(--ink-2); }
+.icon { background: none; border: 0; color: var(--ink-2); padding: 2px 7px; border-radius: 6px; }
+.icon:hover { background: var(--mist); color: var(--red); }
+.comments { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.comments li { display: flex; gap: 8px; }
+.bubble { border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.side { display: flex; flex-direction: column; gap: 6px; }
+.side .btn { text-align: left; width: 100%; }
+.pick { border: 1px solid var(--line); border-radius: 9px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.pick label { display: flex; align-items: center; gap: 7px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.sw { width: 34px; height: 24px; border-radius: 6px; border: 2px solid transparent; }
+.sw.on { border-color: var(--ink); }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.log li { display: flex; gap: 8px; align-items: flex-start; }
+.mrow { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--mist); }
+.mrow select { width: auto; }
+.myc { display: flex; flex-direction: column; gap: 18px; }
+.myc ul { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; }
+.myc li { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--mist); flex-wrap: wrap; }
+.myc li:first-child { border-top: 0; }
+.link { background: none; border: 0; padding: 0; color: var(--blue); font-weight: 600; text-align: left; }
+.link:hover { text-decoration: underline; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--blue-deep); color: var(--white); padding: 10px 16px; border-radius: 10px; z-index: 100; box-shadow: 0 8px 22px rgba(5,20,60,.35); max-width: calc(100% - 32px); font-weight: 500; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+
+@media (max-width: 760px) {
+  .intro, .two, .cm-layout, .dates { grid-template-columns: 1fr; }
+  .as { margin-left: 0; width: 100%; }
+  .as select { max-width: none; flex: 1; }
+  .lists { scroll-snap-type: x mandatory; }
+  .list, .add-list { flex-basis: 84vw; }
+  .board-body { flex-direction: column; }
+  .tray { margin: 0 max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); flex: none; max-height: 42vh; }
+  .overlay { padding: 0; }
+  .modal { border-radius: 0; min-height: 100%; }
+  .m-cover { border-radius: 0; }
+  .filters input, .filters select { flex: 1 1 140px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script>
+(() => {
+'use strict';
+const KEY = 'tablero-demo-v1';
+const BG = ['#1859e8', '#0b3aa8', '#2f7cf6', '#0a2a6e', '#3a6fd8', '#1d4ed8'];
+const LABEL_COLORS = ['#d93b3b', '#1859e8', '#e8a317', '#1c8a5a', '#6b7a99', '#7aa7ff'];
+const ROLE = { admin: 'Admin', member: 'Miembro', observer: 'Observador' };
+
+// ---------- utilidades ----------
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let seq = Date.now();
+const uid = (p) => p + (seq++).toString(36);
+const pad = (n) => String(n).padStart(2, '0');
+function rel(days, h = 18, m = 0) {
+  const d = new Date(); d.setDate(d.getDate() + days); d.setHours(h, m, 0, 0);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(h)}:${pad(m)}`;
+}
+const fmt = (s, time = true) => s ? new Date(s).toLocaleString('es-AR', time ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short' }) : '';
+const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'recién' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} d`; };
+const initials = (n) => n.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+
+// ---------- datos de ejemplo ----------
+function seed() {
+  const now = Date.now();
+  const users = [
+    { id: 'u1', name: 'Ana Gómez', job: 'Gerencia', ws: 'owner', color: '#1859e8' },
+    { id: 'u2', name: 'Bruno Díaz', job: 'Ventas', ws: 'member', color: '#0b3aa8' },
+    { id: 'u3', name: 'Carla Ruiz', job: 'Administración', ws: 'member', color: '#3a8dde' },
+    { id: 'u4', name: 'Diego Paz', job: 'Depósito', ws: 'member', color: '#5b6fa8' }
+  ];
+  const areas = [
+    { id: 'a1', name: 'Ventas', members: ['u1', 'u2'] },
+    { id: 'a2', name: 'Administración', members: ['u1', 'u3'] },
+    { id: 'a3', name: 'Depósito', members: ['u4'] }
+  ];
+  const mkLabels = () => [
+    { id: uid('l'), name: 'Urgente', color: LABEL_COLORS[0] },
+    { id: uid('l'), name: 'Cliente', color: LABEL_COLORS[1] },
+    { id: uid('l'), name: 'Pago', color: LABEL_COLORS[2] },
+    { id: uid('l'), name: 'Listo para revisar', color: LABEL_COLORS[3] }
+  ];
+  const boards = [
+    { id: 'b1', title: 'Ventas · Pipeline', area: 'a1', vis: 'area', bg: BG[0], members: { u1: 'admin', u2: 'member', u3: 'observer' }, labels: mkLabels() },
+    { id: 'b2', title: 'Administración', area: 'a2', vis: 'private', bg: BG[1], members: { u1: 'admin', u3: 'member' }, labels: mkLabels() },
+    { id: 'b3', title: 'Coordinación entre áreas', area: null, vis: 'workspace', bg: BG[2], members: { u1: 'admin', u2: 'member', u3: 'member', u4: 'member' }, labels: mkLabels() },
+    { id: 'b4', title: 'Depósito y logística', area: 'a3', vis: 'private', bg: BG[3], members: { u1: 'admin', u4: 'member' }, labels: mkLabels() }
+  ];
+  const lists = []; const cards = [];
+  const cols = ['Pendiente', 'En curso', 'En revisión', 'Hecho'];
+  for (const b of boards) cols.forEach((t, i) => lists.push({ id: `${b.id}-l${i}`, board: b.id, title: t, pos: (i + 1) * 1000, limit: null, archived: false }));
+  const L = (b, i) => b.labels[i].id;
+  const add = (b, col, title, o = {}) => cards.push({
+    id: uid('c'), board: b.id, list: `${b.id}-l${col}`, title, desc: o.desc || '', start: o.start || '', due: o.due || '',
+    done: !!o.done, members: o.members || [], labels: o.labels || [], cover: o.cover || '',
+    checklist: (o.check || []).map((t) => ({ id: uid('i'), text: t[0], done: t[1] })),
+    comments: (o.comments || []).map((c) => ({ id: uid('m'), u: c[0], text: c[1], at: now - c[2] * 60000 })),
+    archived: false, pos: cards.filter((c) => c.list === `${b.id}-l${col}`).length * 1000 + 1000
+  });
+  const [b1, b2, b3, b4] = boards;
+  add(b1, 0, 'Enviar presupuesto a Ferretería Norte', { due: rel(-1, 17), members: ['u2'], labels: [L(b1, 0), L(b1, 1)], desc: 'Pidieron 40 cajas de tornillería y entrega en 10 días. Confirmar precio con Administración antes de enviar.', check: [['Armar planilla de precios', true], ['Validar descuento con Ana', false], ['Enviar por email', false]], comments: [['u1', 'Podemos ofrecer 8 % si pagan a 30 días.', 95]] });
+  add(b1, 0, 'Llamar a clientes inactivos de octubre', { due: rel(3), members: ['u2'], check: [['Lista de 12 clientes', true], ['Llamadas', false]] });
+  add(b1, 1, 'Demo del catálogo nuevo a Distribuidora Sur', { start: rel(0, 9), due: rel(0, 20), members: ['u2', 'u1'], labels: [L(b1, 1)], cover: '#2f7cf6' });
+  add(b1, 2, 'Propuesta anual Supermercados Centro', { due: rel(5), members: ['u1'], labels: [L(b1, 3)], comments: [['u2', 'Subí la versión final, falta tu ok.', 30]] });
+  add(b1, 3, 'Cierre de venta Hotel Las Lomas', { due: rel(-3), done: true, members: ['u2'], labels: [L(b1, 1)] });
+  add(b2, 0, 'Pagar proveedores de la quincena', { due: rel(1, 12), members: ['u3'], labels: [L(b2, 2), L(b2, 0)], check: [['Transportes Ríos', false], ['Papelera Andina', false], ['Energía', true]] });
+  add(b2, 1, 'Conciliación bancaria de octubre', { due: rel(4), members: ['u3'] });
+  add(b2, 3, 'Liquidación de sueldos', { due: rel(-5), done: true, members: ['u3', 'u1'] });
+  add(b3, 0, 'Pedido urgente: Ferretería Norte necesita stock', { due: rel(2), members: ['u4', 'u2'], labels: [L(b3, 0)], desc: 'Ventas necesita confirmar si hay 40 cajas antes del jueves. Depósito responde acá.', comments: [['u4', 'Hay 25 en stock, llegan 20 más el miércoles.', 45], ['u2', 'Perfecto, se lo aviso al cliente.', 20]] });
+  add(b3, 0, 'Definir política de devoluciones', { due: rel(9), members: ['u1', 'u3'] });
+  add(b3, 1, 'Factura pendiente de cobro: Distribuidora Sur', { due: rel(0, 22), members: ['u3', 'u2'], labels: [L(b3, 2)] });
+  add(b3, 2, 'Calendario de feriados y turnos de diciembre', { members: ['u1'], labels: [L(b3, 3)] });
+  add(b4, 0, 'Inventario mensual de góndola 3', { due: rel(6), members: ['u4'], check: [['Contar', false], ['Cargar en planilla', false]] });
+  add(b4, 1, 'Recibir camión de Papelera Andina', { start: rel(1, 8), due: rel(1, 11), members: ['u4'], labels: [L(b4, 0)] });
+  add(b4, 3, 'Ordenar estantería de tornillería', { done: true, due: rel(-2), members: ['u4'] });
+  const activity = [
+    { id: uid('a'), board: 'b1', card: null, u: 'u1', text: 'creó el tablero', at: now - 86400000 * 6 },
+    { id: uid('a'), board: 'b3', card: null, u: 'u1', text: 'agregó el área Depósito al tablero', at: now - 86400000 * 2 }
+  ];
+  return { me: 'u1', users, areas, boards, lists, cards, activity };
+}
+
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+if (!S || !S.users) S = seed();
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* sin almacenamiento */ } };
+
+const ui = { view: 'home', board: null, card: null, panel: null, adding: null, addingList: false, newBoard: false,
+  filter: { text: '', member: '', label: '', due: '' }, tray: false, trayTarget: '', trayCopy: false, moveTo: null, confirmDelete: false, labelsOpen: false, membersOpen: false, coverOpen: false };
+
+// ---------- consultas y permisos ----------
+const user = (id) => S.users.find((u) => u.id === id);
+const board = (id) => S.boards.find((b) => b.id === id);
+const list = (id) => S.lists.find((l) => l.id === id);
+const card = (id) => S.cards.find((c) => c.id === id);
+const me = () => user(S.me);
+const wsAdmin = () => ['owner', 'admin'].includes(me().ws);
+const role = (b) => b.members[S.me];
+const canView = (b) => !!role(b) || wsAdmin() || b.vis === 'workspace' || (b.vis === 'area' && S.areas.find((a) => a.id === b.area)?.members.includes(S.me));
+const canEdit = (b) => ['admin', 'member'].includes(role(b)) || wsAdmin();
+const isAdmin = (b) => role(b) === 'admin' || wsAdmin();
+const listsOf = (bid) => S.lists.filter((l) => l.board === bid && !l.archived).sort((a, b) => a.pos - b.pos);
+const cardsOf = (lid) => S.cards.filter((c) => c.list === lid && !c.archived).sort((a, b) => a.pos - b.pos);
+function dueStatus(c) {
+  if (!c.due) return null;
+  if (c.done) return 'done';
+  const ms = new Date(c.due) - Date.now();
+  return ms < 0 ? 'overdue' : ms < 864e5 ? 'soon' : 'ok';
+}
+function log(bid, cid, text) { S.activity.unshift({ id: uid('a'), board: bid, card: cid, u: S.me, text, at: Date.now() }); }
+
+function avatar(id, size = 28) {
+  const u = user(id); if (!u) return '';
+  return `<span class="avatar" title="${esc(u.name)}" style="background:${u.color};width:${size}px;height:${size}px;font-size:${Math.round(size * .38)}px">${initials(u.name)}</span>`;
+}
+function visLabel(b) {
+  if (b.vis === 'private') return 'Privado';
+  if (b.vis === 'area') return 'Área ' + (S.areas.find((a) => a.id === b.area)?.name || '');
+  return 'Toda la empresa';
+}
+
+let toastT;
+function toast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => (t.hidden = true), 3200);
+}
+
+// ---------- vistas ----------
+function render() {
+  const app = document.getElementById('app');
+  const scroll = document.querySelector('.lists')?.scrollLeft;
+  app.innerHTML = topbar() + (ui.view === 'board' ? boardView() : ui.view === 'mine' ? mineView() : homeView()) + modals();
+  if (ui.view === 'board') { initDnD(); if (scroll != null) document.querySelector('.lists').scrollLeft = scroll; }
+  save();
+}
+
+function topbar() {
+  return `<header class="topbar">
+    <button class="brand" data-a="home"><span class="logo"><i></i><i></i></span>Tablero</button>
+    <nav class="nav">
+      <button class="${ui.view !== 'mine' ? 'on' : ''}" data-a="home">Tableros</button>
+      <button class="${ui.view === 'mine' ? 'on' : ''}" data-a="mine">Mis tarjetas</button>
+    </nav>
+    <div class="as">
+      <label for="as-user">Ver como</label>
+      <select id="as-user" data-c="as">${S.users.map((u) => `<option value="${u.id}" ${u.id === S.me ? 'selected' : ''}>${esc(u.name)} · ${esc(u.job)}${u.ws === 'owner' ? ' (dueña)' : ''}</option>`).join('')}</select>
+      ${avatar(S.me, 32)}
+    </div>
+  </header>`;
+}
+
+function homeView() {
+  const mine = S.cards.filter((c) => !c.archived && c.members.includes(S.me) && ['overdue', 'soon'].includes(dueStatus(c)) && canView(board(c.board)));
+  const groups = [...S.areas.map((a) => ({ id: a.id, name: a.name })), { id: null, name: 'General' }];
+  return `<main class="page"><div class="inner">
+    <section class="intro">
+      <div><h1>Demo interactiva de Tablero</h1>
+        <p>Así funcionaría la app con tu equipo. Los datos son de ejemplo y quedan guardados solo en este navegador. Cambiá de persona arriba a la derecha para ver qué ve y qué puede hacer cada rol.</p></div>
+      <ol>
+        <li>Abrí un tablero y <b>arrastrá tarjetas</b> entre columnas (en el celular, mantené apretado).</li>
+        <li>Tocá una tarjeta para ver <b>plazos, checklist y comentarios</b>.</li>
+        <li>Usá <b>Trasladar a otro tablero</b> y soltá una tarjeta en el panel.</li>
+        <li>Probá como <b>Bruno</b> o <b>Diego</b>: no ven los tableros privados de otras áreas.</li>
+      </ol>
+    </section>
+    ${mine.length ? `<section class="alert"><b>Tus tarjetas vencidas o que vencen en 24 h</b><ul>${mine.map((c) => `<li><button class="link" data-a="goto" data-id="${c.id}">${esc(c.title)}</button> <span class="muted small">· ${esc(board(c.board).title)} · ${fmt(c.due)}</span></li>`).join('')}</ul></section>` : ''}
+    <section>
+      <div class="section-head"><h2>Mi Empresa S.A.</h2><span class="pill">${me().ws === 'owner' ? 'Dueña del espacio' : 'Miembro'}</span><span class="grow"></span>
+        <button class="btn" data-a="panel" data-p="team">Equipo y áreas</button>
+        <button class="btn" data-a="reset">Restablecer demo</button>
+        <button class="btn primary" data-a="new-board">+ Crear tablero</button></div>
+      ${groups.map((g) => {
+        const bs = S.boards.filter((b) => (b.area || null) === g.id && !b.archived);
+        if (!bs.length) return '';
+        return `<div class="area-name"><i></i>${esc(g.name)}</div><div class="grid">${bs.map((b) => canView(b)
+          ? `<button class="tile" style="background:${b.bg}" data-a="open-board" data-id="${b.id}">${esc(b.title)}<small>${visLabel(b)} · ${Object.keys(b.members).length} miembros</small></button>`
+          : `<div class="tile locked">${esc(b.title)}<small>Sin acceso: tablero privado</small></div>`).join('')}</div>`;
+      }).join('')}
+    </section>
+  </div></main>`;
+}
+
+function filtering() { const f = ui.filter; return !!(f.text || f.member || f.label || f.due); }
+function visible(c) {
+  const f = ui.filter;
+  if (f.text && !c.title.toLowerCase().includes(f.text.toLowerCase())) return false;
+  if (f.member && !c.members.includes(f.member)) return false;
+  if (f.label && !c.labels.includes(f.label)) return false;
+  if (f.due) {
+    const s = dueStatus(c);
+    if (f.due === 'none' && c.due) return false;
+    if (f.due === 'overdue' && s !== 'overdue') return false;
+    if (f.due === 'soon' && s !== 'soon') return false;
+    if (f.due === 'done' && s !== 'done') return false;
+  }
+  return true;
+}
+
+function cardTile(c, b) {
+  const done = c.checklist.filter((i) => i.done).length;
+  const s = dueStatus(c);
+  const labels = c.labels.map((id) => b.labels.find((l) => l.id === id)).filter(Boolean);
+  return `<article class="card" data-id="${c.id}" data-a="open-card" tabindex="0">
+    ${c.cover ? `<div class="cover" style="background:${c.cover}"></div>` : ''}
+    ${labels.length ? `<div class="labels">${labels.map((l) => `<span class="lbl" style="background:${l.color}">${esc(l.name)}</span>`).join('')}</div>` : ''}
+    <div class="card-title">${esc(c.title)}</div>
+    <div class="badges">
+      ${c.due ? `<span class="bdg ${s}">${s === 'done' ? '✓ ' : ''}${fmt(c.due, false)}</span>` : ''}
+      ${c.desc ? '<span class="bdg" title="Tiene descripción">≡</span>' : ''}
+      ${c.comments.length ? `<span class="bdg">💬 ${c.comments.length}</span>` : ''}
+      ${c.checklist.length ? `<span class="bdg ${done === c.checklist.length ? 'done' : ''}">☑ ${done}/${c.checklist.length}</span>` : ''}
+      <span class="grow"></span><span class="avatars">${c.members.map((m) => avatar(m, 22)).join('')}</span>
+    </div>
+  </article>`;
+}
+
+function boardView() {
+  const b = board(ui.board);
+  const edit = canEdit(b);
+  const ls = listsOf(b.id);
+  const f = ui.filter;
+  const others = S.boards.filter((x) => x.id !== b.id && !x.archived && canView(x));
+  return `<div class="board" style="--bbg:${b.bg}">
+    <div class="board-bar">
+      <h1>${esc(b.title)}</h1>
+      <span class="pill on-blue">${visLabel(b)}</span>
+      ${!edit ? `<span class="pill on-blue">Solo lectura${role(b) === 'observer' ? ' · podés comentar' : ''}</span>` : ''}
+      <span class="avatars" data-a="panel" data-p="members" role="button" tabindex="0" title="Miembros">${Object.keys(b.members).map((u) => avatar(u, 26)).join('')}</span>
+      <span class="grow"></span>
+      ${edit ? `<button class="btn on-blue ${ui.tray ? 'on' : ''}" data-a="tray">⇄ Trasladar a otro tablero</button>` : ''}
+      <button class="btn on-blue" data-a="panel" data-p="members">Miembros</button>
+      <button class="btn on-blue" data-a="panel" data-p="activity">Actividad</button>
+      <button class="btn on-blue" data-a="panel" data-p="archived">Archivados</button>
+    </div>
+    <div class="filters">
+      <input id="f-text" placeholder="Buscar tarjetas…" value="${esc(f.text)}" data-c="filter" data-k="text" aria-label="Buscar">
+      <select id="f-member" data-c="filter" data-k="member" aria-label="Miembro"><option value="">Todos los miembros</option>
+        ${Object.keys(b.members).map((u) => `<option value="${u}" ${f.member === u ? 'selected' : ''}>${u === S.me ? 'Mis tarjetas' : esc(user(u).name)}</option>`).join('')}</select>
+      <select id="f-label" data-c="filter" data-k="label" aria-label="Etiqueta"><option value="">Todas las etiquetas</option>
+        ${b.labels.map((l) => `<option value="${l.id}" ${f.label === l.id ? 'selected' : ''}>${esc(l.name || 'Sin nombre')}</option>`).join('')}</select>
+      <select id="f-due" data-c="filter" data-k="due" aria-label="Plazo">
+        ${[['', 'Cualquier plazo'], ['overdue', 'Vencidas'], ['soon', 'Vencen en 24 h'], ['done', 'Completadas'], ['none', 'Sin fecha']].map(([v, t]) => `<option value="${v}" ${f.due === v ? 'selected' : ''}>${t}</option>`).join('')}</select>
+      ${filtering() ? '<button class="btn on-blue sm" data-a="clear-filter">Limpiar</button>' : ''}
+      ${filtering() && edit ? '<span class="note">Con filtros activos se pausa el arrastre.</span>' : ''}
+    </div>
+    <div class="board-body">
+      <div class="lists">
+        ${ls.map((l) => {
+          const all = cardsOf(l.id); const shown = all.filter(visible);
+          const over = l.limit && all.length > l.limit;
+          return `<section class="list ${over ? 'over' : ''}" data-list="${l.id}">
+            <div class="list-head"><b>${esc(l.title)}</b><span class="count">${l.limit ? `${all.length}/${l.limit}` : all.length}</span></div>
+            <div class="cards" data-list="${l.id}">${shown.map((c) => cardTile(c, b)).join('')}</div>
+            ${edit ? (ui.adding === l.id
+              ? `<form class="addform" data-s="add-card" data-list="${l.id}"><textarea id="new-card-${l.id}" name="t" rows="2" placeholder="Título de la tarjeta" autofocus></textarea><div class="row"><button class="btn primary sm">Añadir</button><button type="button" class="btn sm" data-a="cancel-add">Cancelar</button></div></form>`
+              : `<button class="add" data-a="add-card" data-list="${l.id}">+ Añadir tarjeta</button>`) : ''}
+          </section>`;
+        }).join('')}
+        ${edit ? `<div class="add-list">${ui.addingList
+          ? `<form class="addform" data-s="add-list"><input id="new-list" name="t" placeholder="Título de la columna" autofocus><div class="row"><button class="btn primary sm">Añadir</button><button type="button" class="btn on-blue sm" data-a="cancel-list">Cancelar</button></div></form>`
+          : '<button class="add" data-a="add-list">+ Añadir columna</button>'}</div>` : ''}
+      </div>
+      ${ui.tray && edit ? `<aside class="tray">
+        <h3>⇄ Trasladar tarjetas</h3>
+        <p class="small muted" style="margin:0">Elegí el tablero destino y arrastrá una tarjeta hasta la columna donde querés que llegue.</p>
+        <select id="tray-target" data-c="tray-target"><option value="">Elegir tablero…</option>
+          ${others.map((x) => `<option value="${x.id}" ${ui.trayTarget === x.id ? 'selected' : ''}>${esc(x.title)}${canEdit(x) ? '' : ' (solo lectura)'}</option>`).join('')}</select>
+        <label class="row small"><input type="checkbox" id="tray-copy" data-c="tray-copy" ${ui.trayCopy ? 'checked' : ''}> Copiar en lugar de mover</label>
+        ${ui.trayTarget ? (canEdit(board(ui.trayTarget))
+          ? listsOf(ui.trayTarget).map((l) => `<div class="drop" data-drop="${l.id}">↳ ${esc(l.title)}</div>`).join('')
+          : '<p class="small" style="margin:0;color:var(--red)">No tenés permiso de edición en ese tablero. El traslado exige poder editar en ambos.</p>') : ''}
+      </aside>` : ''}
+    </div>
+  </div>`;
+}
+
+function mineView() {
+  const cs = S.cards.filter((c) => !c.archived && c.members.includes(S.me) && canView(board(c.board)));
+  const groups = [['overdue', 'Vencidas'], ['soon', 'Vencen en 24 h'], ['ok', 'Con fecha'], [null, 'Sin fecha'], ['done', 'Completadas']];
+  return `<main class="page"><div class="inner myc">
+    <div class="section-head"><h2>Mis tarjetas</h2><span class="muted">${esc(me().name)} · ${cs.length} tarjetas en todos sus tableros</span></div>
+    ${groups.map(([k, t]) => {
+      const items = cs.filter((c) => dueStatus(c) === k).sort((a, b) => (a.due || '').localeCompare(b.due || ''));
+      if (!items.length) return '';
+      return `<section><span class="lab">${t} · ${items.length}</span><ul>${items.map((c) => `<li>
+        <button class="link grow" data-a="goto" data-id="${c.id}">${esc(c.title)}</button>
+        <span class="small muted">${esc(board(c.board).title)} · ${esc(list(c.list).title)}</span>
+        ${c.due ? `<span class="bdg ${dueStatus(c)}">${fmt(c.due)}</span>` : ''}</li>`).join('')}</ul></section>`;
+    }).join('') || '<p class="muted">No tenés tarjetas asignadas.</p>'}
+  </div></main>`;
+}
+
+// ---------- modales ----------
+function modals() {
+  if (ui.card) return cardModal();
+  if (ui.panel === 'members') return membersPanel();
+  if (ui.panel === 'activity') return activityPanel();
+  if (ui.panel === 'archived') return archivedPanel();
+  if (ui.panel === 'team') return teamPanel();
+  if (ui.newBoard) return newBoardModal();
+  return '';
+}
+const shell = (inner, narrow = false) => `<div class="overlay" data-close="1"><div class="modal ${narrow ? 'narrow' : ''}" role="dialog" aria-modal="true"><button class="x" data-a="close" aria-label="Cerrar">×</button>${inner}</div></div>`;
+
+function cardModal() {
+  const c = card(ui.card); const b = board(c.board); const l = list(c.list);
+  const edit = canEdit(b); const dis = edit ? '' : 'disabled';
+  const done = c.checklist.filter((i) => i.done).length;
+  const pct = c.checklist.length ? Math.round(done / c.checklist.length * 100) : 0;
+  const s = dueStatus(c);
+  const acts = S.activity.filter((a) => a.card === c.id).slice(0, 12);
+  const targets = S.boards.filter((x) => !x.archived && canView(x));
+  const mv = ui.moveTo || { board: b.id, list: '', copy: false };
+  const mvLists = listsOf(mv.board);
+  return shell(`
+    ${c.cover ? `<div class="m-cover" style="background:${c.cover}"></div>` : ''}
+    <textarea class="title-input" id="card-title" rows="2" data-c="card" data-k="title" ${dis} aria-label="Título">${esc(c.title)}</textarea>
+    <div class="small muted">En la columna <b>${esc(l.title)}</b> del tablero <b>${esc(b.title)}</b>${c.archived ? ' · <b style="color:var(--red)">Archivada</b>' : ''}</div>
+    <div class="cm-layout">
+      <div>
+        <div class="meta">
+          ${c.members.length ? `<div class="stack" style="gap:4px"><span class="lab">Miembros</span><span class="avatars">${c.members.map((m) => avatar(m, 30)).join('')}</span></div>` : ''}
+          ${c.labels.length ? `<div class="stack" style="gap:4px"><span class="lab">Etiquetas</span><div class="labels">${c.labels.map((id) => b.labels.find((x) => x.id === id)).filter(Boolean).map((x) => `<span class="lbl" style="background:${x.color};padding:3px 9px">${esc(x.name)}</span>`).join('')}</div></div>` : ''}
+          ${c.due ? `<div class="stack" style="gap:4px"><span class="lab">Estado</span><span class="bdg ${s}" style="align-self:flex-start;padding:3px 9px">${s === 'done' ? 'Completada' : s === 'overdue' ? 'Vencida' : s === 'soon' ? 'Vence pronto' : 'En plazo'}</span></div>` : ''}
+        </div>
+        <div class="sec"><h4>Plazos</h4>
+          <div class="dates">
+            <label class="stack" style="gap:4px"><span class="lab">Inicio</span><input type="datetime-local" id="card-start" value="${c.start}" data-c="card" data-k="start" ${dis}></label>
+            <label class="stack" style="gap:4px"><span class="lab">Vencimiento</span><input type="datetime-local" id="card-due" value="${c.due}" data-c="card" data-k="due" ${dis}></label>
+          </div>
+          ${c.due ? `<label class="row"><input type="checkbox" id="card-done" ${c.done ? 'checked' : ''} data-c="card-done" ${dis}> Marcar como completada</label>` : ''}
+        </div>
+        <div class="sec"><h4>Descripción</h4>
+          <textarea id="card-desc" rows="4" placeholder="${edit ? 'Añadí una descripción más detallada…' : 'Sin descripción'}" data-c="card" data-k="desc" ${dis}>${esc(c.desc)}</textarea>
+        </div>
+        <div class="sec"><h4>Checklist</h4>
+          ${c.checklist.length ? `<div class="progress"><span>${pct} %</span><span class="bar"><i style="width:${pct}%"></i></span></div>` : ''}
+          <ul class="items">${c.checklist.map((i) => `<li class="${i.done ? 'done' : ''}">
+            <input type="checkbox" id="chk-${i.id}" ${i.done ? 'checked' : ''} data-c="check" data-id="${i.id}" ${dis} aria-label="Completar ítem">
+            <span class="grow">${esc(i.text)}</span>
+            ${edit ? `<button class="icon" data-a="del-item" data-id="${i.id}" aria-label="Eliminar ítem">✕</button>` : ''}</li>`).join('')}</ul>
+          ${edit ? `<form class="row" data-s="add-item"><input id="new-item" name="t" placeholder="Añadir un ítem"><button class="btn sm">Añadir</button></form>` : ''}
+        </div>
+        <div class="sec"><h4>Comentarios</h4>
+          ${canView(b) ? `<form class="stack" data-s="comment"><textarea id="new-comment" name="t" rows="2" placeholder="Escribí un comentario…"></textarea><button class="btn primary sm" style="align-self:flex-start">Comentar</button></form>` : ''}
+          <ul class="comments">${[...c.comments].reverse().map((m) => `<li>${avatar(m.u)}<div class="grow"><b>${esc(user(m.u).name)}</b> <span class="small muted">${ago(m.at)}</span><div class="bubble">${esc(m.text)}</div></div></li>`).join('')}</ul>
+        </div>
+        ${acts.length ? `<div class="sec"><h4>Actividad</h4><ul class="log">${acts.map((a) => `<li>${avatar(a.u, 22)}<span><b>${esc(user(a.u).name)}</b> ${esc(a.text)} <span class="small muted">· ${ago(a.at)}</span></span></li>`).join('')}</ul></div>` : ''}
+      </div>
+      <aside class="side">
+        ${edit ? `
+        <span class="lab">Añadir a la tarjeta</span>
+        <button class="btn" data-a="toggle" data-k="membersOpen">Miembros</button>
+        ${ui.membersOpen ? `<div class="pick">${Object.keys(b.members).map((u) => `<label><input type="checkbox" id="cm-${u}" ${c.members.includes(u) ? 'checked' : ''} data-c="card-member" data-id="${u}">${avatar(u, 22)} ${esc(user(u).name)}</label>`).join('')}</div>` : ''}
+        <button class="btn" data-a="toggle" data-k="labelsOpen">Etiquetas</button>
+        ${ui.labelsOpen ? `<div class="pick">${b.labels.map((x) => `<label><input type="checkbox" id="cl-${x.id}" ${c.labels.includes(x.id) ? 'checked' : ''} data-c="card-label" data-id="${x.id}"><span class="lbl" style="background:${x.color}">${esc(x.name)}</span></label>`).join('')}
+          <form class="row" data-s="new-label"><input id="new-label" name="t" placeholder="Nueva etiqueta" maxlength="30"><button class="btn sm">+</button></form></div>` : ''}
+        <button class="btn" data-a="toggle" data-k="coverOpen">Portada</button>
+        ${ui.coverOpen ? `<div class="pick swatches">${BG.map((x) => `<button class="sw ${c.cover === x ? 'on' : ''}" style="background:${x}" data-a="cover" data-v="${x}" aria-label="Color de portada"></button>`).join('')}<button class="btn sm" data-a="cover" data-v="">Quitar</button></div>` : ''}
+        <span class="lab" style="margin-top:8px">Mover o copiar</span>
+        <div class="pick">
+          <select id="mv-board" data-c="mv" data-k="board" aria-label="Tablero destino">${targets.map((x) => `<option value="${x.id}" ${mv.board === x.id ? 'selected' : ''}>${esc(x.title)}${x.id === b.id ? ' (actual)' : ''}</option>`).join('')}</select>
+          <select id="mv-list" data-c="mv" data-k="list" aria-label="Columna destino">${mvLists.map((x) => `<option value="${x.id}" ${(mv.list || mvLists[0]?.id) === x.id ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select>
+          <label class="small"><input type="checkbox" id="mv-copy" ${mv.copy ? 'checked' : ''} data-c="mv-copy"> Crear una copia</label>
+          <button class="btn primary sm" data-a="do-move">${mv.copy ? 'Copiar' : 'Mover'}</button>
+        </div>
+        <span class="lab" style="margin-top:8px">Acciones</span>
+        ${c.archived ? '<button class="btn" data-a="archive" data-v="0">Restaurar</button>' : '<button class="btn" data-a="archive" data-v="1">Archivar</button>'}
+        ${isAdmin(b) ? (ui.confirmDelete
+          ? '<div class="pick"><span class="small">¿Eliminar definitivamente?</span><div class="row"><button class="btn danger sm" data-a="delete">Sí, eliminar</button><button class="btn sm" data-a="toggle" data-k="confirmDelete">No</button></div></div>'
+          : '<button class="btn danger" data-a="toggle" data-k="confirmDelete">Eliminar</button>') : ''}
+        ` : `<div class="pick small">Estás viendo como <b>${esc(me().name)}</b> (${role(b) ? ROLE[role(b)] : 'sin rol en el tablero'}). Podés leer y comentar, pero no editar ni mover esta tarjeta.</div>`}
+      </aside>
+    </div>`);
+}
+
+function membersPanel() {
+  const b = board(ui.board); const adm = isAdmin(b);
+  const notIn = S.users.filter((u) => !b.members[u.id]);
+  return shell(`<h2 style="font-size:19px;margin-bottom:12px">Miembros del tablero</h2>
+    ${adm ? `<form class="row wrap" data-s="add-member" style="margin-bottom:8px">
+      <select id="add-member-user" name="u" class="grow" style="min-width:160px"><option value="">Agregar persona…</option>${notIn.map((u) => `<option value="${u.id}">${esc(u.name)} · ${esc(u.job)}</option>`).join('')}</select>
+      <select id="add-member-role" name="r" style="width:auto"><option value="member">Miembro</option><option value="admin">Admin</option><option value="observer">Observador</option></select>
+      <button class="btn primary">Agregar</button></form>
+      <form class="row wrap" data-s="add-area" style="margin-bottom:12px">
+      <select id="add-area" name="a" class="grow" style="min-width:160px"><option value="">Agregar un área completa…</option>${S.areas.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select>
+      <button class="btn">Agregar área</button></form>` : ''}
+    ${Object.entries(b.members).map(([u, r]) => `<div class="mrow">${avatar(u, 32)}<div class="grow"><b>${esc(user(u).name)}</b><div class="small muted">${esc(user(u).job)}</div></div>
+      ${adm ? `<select id="role-${u}" data-c="role" data-id="${u}">${Object.entries(ROLE).map(([k, v]) => `<option value="${k}" ${r === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
+      ${u !== S.me ? `<button class="icon" data-a="remove-member" data-id="${u}" aria-label="Quitar">✕</button>` : ''}` : `<span class="pill">${ROLE[r]}</span>`}</div>`).join('')}
+    <p class="small muted" style="margin-bottom:0"><b>Admin</b> gestiona miembros y configuración. <b>Miembro</b> crea y mueve tarjetas. <b>Observador</b> solo ve y comenta.</p>`, true);
+}
+function activityPanel() {
+  const b = board(ui.board);
+  const items = S.activity.filter((a) => a.board === b.id).slice(0, 40);
+  return shell(`<h2 style="font-size:19px;margin-bottom:12px">Actividad del tablero</h2>
+    <ul class="log">${items.map((a) => `<li>${avatar(a.u, 24)}<span><b>${esc(user(a.u).name)}</b> ${esc(a.text)} <span class="small muted">· ${ago(a.at)}</span></span></li>`).join('') || '<li class="muted">Sin actividad todavía.</li>'}</ul>`, true);
+}
+function archivedPanel() {
+  const b = board(ui.board);
+  const items = S.cards.filter((c) => c.board === b.id && c.archived);
+  return shell(`<h2 style="font-size:19px;margin-bottom:12px">Tarjetas archivadas</h2>
+    ${items.map((c) => `<div class="mrow"><button class="link grow" data-a="open-card-direct" data-id="${c.id}">${esc(c.title)}</button>
+      ${canEdit(b) ? `<button class="btn sm" data-a="restore" data-id="${c.id}">Restaurar</button>` : ''}</div>`).join('') || '<p class="muted">No hay tarjetas archivadas. Abrí una tarjeta y tocá Archivar para probarlo.</p>'}`, true);
+}
+function teamPanel() {
+  const adm = wsAdmin();
+  return shell(`<h2 style="font-size:19px;margin-bottom:14px">Equipo y áreas · Mi Empresa S.A.</h2>
+    <div class="two">
+      <div><span class="lab">Personas</span>${S.users.map((u) => `<div class="mrow">${avatar(u.id, 32)}<div class="grow"><b>${esc(u.name)}</b><div class="small muted">${esc(u.job)}</div></div><span class="pill">${u.ws === 'owner' ? 'Dueña' : u.ws === 'admin' ? 'Admin' : 'Miembro'}</span></div>`).join('')}
+        <p class="small muted">En la app real se agregan por email; cada persona se registra con su propio usuario y puede usarlo en todos sus dispositivos.</p></div>
+      <div><span class="lab">Áreas</span>${S.areas.map((a) => `<div class="pick" style="margin-top:8px"><b>${esc(a.name)}</b>
+        ${S.users.map((u) => `<label class="small"><input type="checkbox" id="area-${a.id}-${u.id}" ${a.members.includes(u.id) ? 'checked' : ''} ${adm ? '' : 'disabled'} data-c="area-member" data-area="${a.id}" data-id="${u.id}"> ${esc(u.name)}</label>`).join('')}</div>`).join('')}
+        ${adm ? '' : '<p class="small muted">Solo la dueña o un admin pueden cambiar las áreas.</p>'}</div>
+    </div>`);
+}
+function newBoardModal() {
+  return shell(`<h2 style="font-size:19px;margin-bottom:12px">Crear tablero</h2>
+    <form class="stack" data-s="new-board">
+      <label class="stack" style="gap:4px"><span class="lab">Título</span><input id="nb-title" name="title" required maxlength="80" placeholder="Ej.: Compras 2027" autofocus></label>
+      <label class="stack" style="gap:4px"><span class="lab">Área</span><select id="nb-area" name="area"><option value="">General (sin área)</option>${S.areas.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label>
+      <label class="stack" style="gap:4px"><span class="lab">¿Quién lo puede ver?</span><select id="nb-vis" name="vis"><option value="private">Solo los miembros del tablero</option><option value="area">Todos los integrantes del área</option><option value="workspace">Toda la empresa</option></select></label>
+      <span class="lab">Color</span>
+      <div class="swatches">${BG.map((x, i) => `<label><input type="radio" name="bg" value="${x}" ${i === 0 ? 'checked' : ''} hidden><span class="sw" style="display:block;background:${x}"></span></label>`).join('')}</div>
+      <button class="btn primary">Crear tablero</button>
+    </form>`, true);
+}
+
+// ---------- arrastrar y soltar ----------
+function initDnD() {
+  if (typeof Sortable === 'undefined') return;
+  const b = board(ui.board);
+  const off = !canEdit(b) || filtering();
+  const opts = { animation: 160, delay: 180, delayOnTouchOnly: true, ghostClass: 'ghost', chosenClass: 'chosen', disabled: off, forceFallback: true, fallbackTolerance: 4 };
+  document.querySelectorAll('.lists > .list .cards').forEach((el) => new Sortable(el, { ...opts, group: 'cards', onEnd: onCardDrop }));
+  new Sortable(document.querySelector('.lists'), { ...opts, handle: '.list-head', draggable: '.list', onEnd: onListDrop });
+  document.querySelectorAll('.drop').forEach((el) => new Sortable(el, {
+    group: { name: 'cards', pull: false, put: true }, ghostClass: 'ghost',
+    onAdd: (e) => { const id = e.item.dataset.id; e.item.remove(); transfer(id, el.dataset.drop, ui.trayCopy); }
+  }));
+}
+function onCardDrop(e) {
+  if (e.to.classList.contains('drop')) return;
+  const changed = new Set([e.from, e.to]);
+  for (const el of changed) {
+    const lid = el.dataset.list;
+    [...el.querySelectorAll('.card')].forEach((node, i) => {
+      const c = card(node.dataset.id);
+      if (c.list !== lid) log(c.board, c.id, `movió la tarjeta de “${list(c.list).title}” a “${list(lid).title}”`);
+      c.list = lid; c.pos = (i + 1) * 1000;
+    });
+  }
+  render();
+}
+function onListDrop() {
+  [...document.querySelectorAll('.lists > .list')].forEach((node, i) => { list(node.dataset.list).pos = (i + 1) * 1000; });
+  render();
+}
+function transfer(cardId, targetList, copy) {
+  const c = card(cardId); const tl = list(targetList); const tb = board(tl.board); const sb = board(c.board);
+  if (!canEdit(tb)) { toast('No tenés permiso de edición en el tablero destino.'); render(); return; }
+  if (!copy && !canEdit(sb)) { toast('No tenés permiso para mover tarjetas de este tablero.'); render(); return; }
+  const mapLabel = (lid) => {
+    const l = sb.labels.find((x) => x.id === lid); if (!l) return null;
+    let t = tb.labels.find((x) => x.name === l.name && x.color === l.color);
+    if (!t) { t = { id: uid('l'), name: l.name, color: l.color }; tb.labels.push(t); }
+    return t.id;
+  };
+  const pos = Math.max(0, ...cardsOf(tl.id).map((x) => x.pos)) + 1000;
+  const labels = c.labels.map(mapLabel).filter(Boolean);
+  const members = c.members.filter((u) => tb.members[u]);
+  if (copy) {
+    const n = { ...c, id: uid('c'), board: tb.id, list: tl.id, pos, labels, members, comments: [], archived: false, checklist: c.checklist.map((i) => ({ ...i, id: uid('i') })) };
+    S.cards.push(n);
+    log(sb.id, c.id, `copió “${c.title}” al tablero “${tb.title}”`);
+    log(tb.id, n.id, `copió “${c.title}” desde el tablero “${sb.title}”`);
+  } else {
+    const removed = c.members.length - members.length;
+    Object.assign(c, { board: tb.id, list: tl.id, pos, labels, members });
+    log(sb.id, null, `trasladó “${c.title}” al tablero “${tb.title}”`);
+    log(tb.id, c.id, `trasladó “${c.title}” desde el tablero “${sb.title}”`);
+    if (removed) setTimeout(() => toast(`Se quitaron ${removed} miembro(s) que no pertenecen a “${tb.title}”.`), 3300);
+  }
+  toast(copy ? `Tarjeta copiada a “${tb.title}” · ${tl.title}` : `Tarjeta trasladada a “${tb.title}” · ${tl.title}`);
+  render();
+}
+
+// ---------- acciones ----------
+const A = {
+  home: () => { ui.view = 'home'; ui.board = null; ui.card = null; ui.panel = null; render(); },
+  mine: () => { ui.view = 'mine'; ui.card = null; ui.panel = null; render(); },
+  'open-board': (t) => { ui.view = 'board'; ui.board = t.dataset.id; ui.filter = { text: '', member: '', label: '', due: '' }; ui.trayTarget = ''; render(); },
+  goto: (t) => { const c = card(t.dataset.id); ui.view = 'board'; ui.board = c.board; openCard(c.id); },
+  'open-card': (t) => openCard(t.dataset.id),
+  'open-card-direct': (t) => { ui.panel = null; openCard(t.dataset.id); },
+  close: () => { ui.card = null; ui.panel = null; ui.newBoard = false; render(); },
+  panel: (t) => { ui.panel = t.dataset.p; render(); },
+  tray: () => { ui.tray = !ui.tray; render(); },
+  'clear-filter': () => { ui.filter = { text: '', member: '', label: '', due: '' }; render(); },
+  'add-card': (t) => { ui.adding = t.dataset.list; render(); document.getElementById('new-card-' + t.dataset.list)?.focus(); },
+  'cancel-add': () => { ui.adding = null; render(); },
+  'add-list': () => { ui.addingList = true; render(); document.getElementById('new-list')?.focus(); },
+  'cancel-list': () => { ui.addingList = false; render(); },
+  'new-board': () => { ui.newBoard = true; render(); document.getElementById('nb-title')?.focus(); },
+  toggle: (t) => { ui[t.dataset.k] = !ui[t.dataset.k]; render(); },
+  cover: (t) => { card(ui.card).cover = t.dataset.v; render(); },
+  'del-item': (t) => { const c = card(ui.card); c.checklist = c.checklist.filter((i) => i.id !== t.dataset.id); render(); },
+  archive: (t) => {
+    const c = card(ui.card); c.archived = t.dataset.v === '1';
+    log(c.board, c.id, c.archived ? 'archivó la tarjeta' : 'restauró la tarjeta');
+    if (c.archived) { ui.card = null; toast('Tarjeta archivada. La encontrás en Archivados.'); }
+    render();
+  },
+  delete: () => { const c = card(ui.card); S.cards = S.cards.filter((x) => x.id !== c.id); log(c.board, null, `eliminó la tarjeta “${c.title}”`); ui.card = null; ui.confirmDelete = false; toast('Tarjeta eliminada.'); render(); },
+  restore: (t) => { const c = card(t.dataset.id); c.archived = false; log(c.board, c.id, 'restauró la tarjeta'); render(); },
+  'remove-member': (t) => { const b = board(ui.board); delete b.members[t.dataset.id]; log(b.id, null, `quitó a ${user(t.dataset.id).name} del tablero`); render(); },
+  'do-move': () => {
+    const c = card(ui.card); const mv = ui.moveTo || { board: c.board, list: '', copy: false };
+    const target = mv.list || listsOf(mv.board)[0]?.id;
+    if (!target) return toast('Ese tablero no tiene columnas.');
+    if (mv.board === c.board && !mv.copy) {
+      if (target !== c.list) log(c.board, c.id, `movió la tarjeta de “${list(c.list).title}” a “${list(target).title}”`);
+      c.list = target; c.pos = Math.max(0, ...cardsOf(target).map((x) => x.pos)) + 1000;
+      toast('Tarjeta movida.'); render(); return;
+    }
+    ui.card = null; ui.moveTo = null;
+    transfer(c.id, target, mv.copy);
+  },
+  reset: () => { S = seed(); ui.view = 'home'; ui.card = null; ui.panel = null; toast('Demo restablecida.'); render(); }
+};
+function openCard(id) { ui.card = id; ui.moveTo = null; ui.confirmDelete = false; ui.membersOpen = ui.labelsOpen = ui.coverOpen = false; render(); }
+
+const C = {
+  as: (t) => {
+    S.me = t.value;
+    if (ui.view === 'board' && !canView(board(ui.board))) { ui.view = 'home'; ui.board = null; ui.card = null; toast(`${me().name} no tiene acceso a ese tablero.`); }
+    else toast(`Ahora ves la app como ${me().name}.`);
+    ui.panel = null; render();
+  },
+  filter: (t) => { ui.filter[t.dataset.k] = t.value; render(); if (t.dataset.k === 'text') { const i = document.getElementById('f-text'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); } },
+  'tray-target': (t) => { ui.trayTarget = t.value; render(); },
+  'tray-copy': (t) => { ui.trayCopy = t.checked; render(); },
+  card: (t) => {
+    const c = card(ui.card); const k = t.dataset.k; const v = t.value;
+    if (k === 'title' && !v.trim()) return render();
+    if (c[k] === v) return;
+    c[k] = k === 'title' ? v.trim() : v;
+    if (k === 'due') log(c.board, c.id, v ? `cambió el vencimiento a ${fmt(v)}` : 'quitó el vencimiento');
+    render();
+  },
+  'card-done': (t) => { const c = card(ui.card); c.done = t.checked; if (c.done) log(c.board, c.id, 'marcó la tarjeta como completada'); render(); },
+  check: (t) => { const i = card(ui.card).checklist.find((x) => x.id === t.dataset.id); i.done = t.checked; render(); },
+  'card-member': (t) => { const c = card(ui.card); const u = t.dataset.id; c.members = t.checked ? [...c.members, u] : c.members.filter((x) => x !== u); if (t.checked) log(c.board, c.id, `sumó a ${user(u).name} a la tarjeta`); render(); },
+  'card-label': (t) => { const c = card(ui.card); const l = t.dataset.id; c.labels = t.checked ? [...c.labels, l] : c.labels.filter((x) => x !== l); render(); },
+  mv: (t) => { const c = card(ui.card); ui.moveTo = { ...(ui.moveTo || { board: c.board, list: '', copy: false }), [t.dataset.k]: t.value }; if (t.dataset.k === 'board') ui.moveTo.list = ''; render(); },
+  'mv-copy': (t) => { const c = card(ui.card); ui.moveTo = { ...(ui.moveTo || { board: c.board, list: '' }), copy: t.checked }; render(); },
+  role: (t) => { const b = board(ui.board); b.members[t.dataset.id] = t.value; log(b.id, null, `cambió el rol de ${user(t.dataset.id).name} a ${ROLE[t.value]}`); render(); },
+  'area-member': (t) => { const a = S.areas.find((x) => x.id === t.dataset.area); const u = t.dataset.id; a.members = t.checked ? [...a.members, u] : a.members.filter((x) => x !== u); render(); }
+};
+
+const F = {
+  'add-card': (f) => {
+    const t = f.t.value.trim(); if (!t) return;
+    const lid = f.dataset.list; const l = list(lid);
+    const c = { id: uid('c'), board: l.board, list: lid, title: t, desc: '', start: '', due: '', done: false, members: [], labels: [], cover: '', checklist: [], comments: [], archived: false, pos: Math.max(0, ...cardsOf(lid).map((x) => x.pos)) + 1000 };
+    S.cards.push(c); log(l.board, c.id, `creó la tarjeta “${t}”`);
+    render(); document.getElementById('new-card-' + lid)?.focus();
+  },
+  'add-list': (f) => {
+    const t = f.t.value.trim(); if (!t) return;
+    S.lists.push({ id: uid('l'), board: ui.board, title: t, pos: Math.max(0, ...listsOf(ui.board).map((x) => x.pos)) + 1000, limit: null, archived: false });
+    log(ui.board, null, `agregó la columna “${t}”`);
+    render(); document.getElementById('new-list')?.focus();
+  },
+  'add-item': (f) => { const t = f.t.value.trim(); if (!t) return; card(ui.card).checklist.push({ id: uid('i'), text: t, done: false }); render(); document.getElementById('new-item')?.focus(); },
+  comment: (f) => {
+    const t = f.t.value.trim(); if (!t) return;
+    const c = card(ui.card); c.comments.push({ id: uid('m'), u: S.me, text: t, at: Date.now() });
+    log(c.board, c.id, 'comentó en la tarjeta'); render();
+  },
+  'new-label': (f) => {
+    const t = f.t.value.trim(); if (!t) return;
+    const c = card(ui.card); const b = board(c.board);
+    const l = { id: uid('l'), name: t, color: LABEL_COLORS[b.labels.length % LABEL_COLORS.length] };
+    b.labels.push(l); c.labels.push(l.id); render();
+  },
+  'add-member': (f) => {
+    const u = f.u.value; if (!u) return;
+    const b = board(ui.board); b.members[u] = f.r.value;
+    log(b.id, null, `agregó a ${user(u).name} como ${ROLE[f.r.value]}`); toast(`${user(u).name} ahora es ${ROLE[f.r.value].toLowerCase()} del tablero.`); render();
+  },
+  'add-area': (f) => {
+    const a = S.areas.find((x) => x.id === f.a.value); if (!a) return;
+    const b = board(ui.board); let n = 0;
+    for (const u of a.members) if (!b.members[u]) { b.members[u] = 'member'; n++; }
+    log(b.id, null, `agregó el área ${a.name} al tablero`); toast(`Se agregaron ${n} persona(s) del área ${a.name}.`); render();
+  },
+  'new-board': (f) => {
+    const title = f.title.value.trim(); if (!title) return;
+    const area = f.area.value || null;
+    const b = { id: uid('b'), title, area, vis: f.vis.value === 'area' && !area ? 'private' : f.vis.value, bg: f.bg.value, members: { [S.me]: 'admin' },
+      labels: [['Urgente', 0], ['Cliente', 1], ['Pago', 2], ['Listo para revisar', 3]].map(([n, i]) => ({ id: uid('l'), name: n, color: LABEL_COLORS[i] })) };
+    S.boards.push(b);
+    ['Pendiente', 'En curso', 'Hecho'].forEach((t, i) => S.lists.push({ id: uid('l'), board: b.id, title: t, pos: (i + 1) * 1000, limit: null, archived: false }));
+    log(b.id, null, 'creó el tablero');
+    ui.newBoard = false; ui.view = 'board'; ui.board = b.id; render();
+  }
+};
+
+document.addEventListener('click', (e) => {
+  if (e.target.classList?.contains('overlay')) return A.close();
+  const t = e.target.closest('[data-a]');
+  if (!t) return;
+  const fn = A[t.dataset.a];
+  if (fn) { e.preventDefault(); fn(t, e); }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && (ui.card || ui.panel || ui.newBoard)) A.close();
+  if (e.key === 'Enter' && e.target.matches?.('.card, [role=button][data-a]')) e.target.click();
+  if (e.key === 'Enter' && e.target.id === 'card-title') { e.preventDefault(); e.target.blur(); }
+  if (e.key === 'Enter' && !e.shiftKey && e.target.matches?.('textarea[name=t]') && e.target.closest('[data-s="add-card"]')) { e.preventDefault(); e.target.form.requestSubmit(); }
+});
+document.addEventListener('change', (e) => { const t = e.target.closest('[data-c]'); if (t && C[t.dataset.c]) C[t.dataset.c](t, e); });
+document.addEventListener('submit', (e) => { e.preventDefault(); const f = e.target; F[f.dataset.s]?.(f); });
+
+render();
+})();
+</script>
+</body>
+</html>
